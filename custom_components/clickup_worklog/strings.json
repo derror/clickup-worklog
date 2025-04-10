@@ -1,0 +1,24 @@
+{
+  "config": {
+    "title": "ClickUp Worklog",
+    "step": {
+      "user": {
+        "title": "Connect to ClickUp",
+        "description": "Set up ClickUp Worklog integration to track your time entries. You will need your ClickUp API token and Workspace ID.",
+        "data": {
+          "api_token": "API Token",
+          "workspace_id": "Workspace ID",
+          "user_id": "User ID (Optional - leave empty to use authenticated user)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to ClickUp API. Please check your internet connection and try again.",
+      "invalid_auth": "Invalid authentication. Please check your API token and try again.",
+      "unknown": "An unexpected error occurred. Please check the logs for more information."
+    },
+    "abort": {
+      "already_configured": "This ClickUp Workspace is already configured."
+    }
+  }
+}

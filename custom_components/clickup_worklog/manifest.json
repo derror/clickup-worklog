@@ -1,0 +1,13 @@
+{
+  "domain": "clickup_worklog",
+  "name": "ClickUp Worklog",
+  "config_flow": true,
+  "documentation": "https://github.com/custom-components/clickup_worklog",
+  "issue_tracker": "https://github.com/custom-components/clickup_worklog/issues",
+  "requirements": ["requests"],
+  "dependencies": [],
+  "codeowners": ["@derror"],
+  "version": "0.1.0",
+  "iot_class": "cloud_polling",
+  "homeassistant": "2023.8.0"
+}

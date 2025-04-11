@@ -42,11 +42,11 @@ class ClickUpApi:
     def _make_request(self, method: str, endpoint: str, params: Optional[Dict] = None) -> Dict:
         """Make a request to the ClickUp API."""
         import requests
-        
+
         url = f"{API_BASE_URL}{endpoint}"
-        
+
         _LOGGER.debug("Making request to ClickUp API: %s %s with params %s", method, url, params)
-        
+
         try:
             response = requests.request(
                 method,
@@ -54,9 +54,9 @@ class ClickUpApi:
                 headers=self.headers,
                 params=params,
             )
-            
+
             _LOGGER.debug("ClickUp API response status: %s", response.status_code)
-            
+
             response.raise_for_status()
             data = response.json()
             return data
@@ -68,30 +68,30 @@ class ClickUpApi:
     def get_time_entries(self, start_date: int, end_date: int) -> List[Dict]:
         """Get time entries within a date range."""
         endpoint = API_TIME_ENTRIES_ENDPOINT.format(workspace_id=self.workspace_id)
-        
+
         params = {
             "start_date": start_date,
             "end_date": end_date,
         }
-        
+
         # If user_id is specified, add it to the params
         if self.user_id:
             params["assignee"] = self.user_id
-        
+
         _LOGGER.debug("Getting time entries from %s to %s",
                      datetime.fromtimestamp(start_date/1000).strftime('%Y-%m-%d %H:%M:%S'),
                      datetime.fromtimestamp(end_date/1000).strftime('%Y-%m-%d %H:%M:%S'))
-        
-        try:    
+
+        try:
             response = self._make_request("GET", endpoint, params)
-            
+
             if "data" not in response:
                 _LOGGER.error("Unexpected response from ClickUp API: %s", response)
                 return []
-            
+
             entries = response["data"]
             _LOGGER.debug("Got %d time entries", len(entries))
-            
+
             # Filter out entries with invalid duration
             valid_entries = []
             for entry in entries:
@@ -99,10 +99,10 @@ class ClickUpApi:
                     valid_entries.append(entry)
                 else:
                     _LOGGER.warning("Skipping entry without duration: %s", entry.get("id", "unknown"))
-            
+
             if len(valid_entries) != len(entries):
                 _LOGGER.info("Filtered out %d entries with missing duration", len(entries) - len(valid_entries))
-            
+
             return valid_entries
         except ClickUpApiError as err:
             _LOGGER.error("Error getting time entries: %s", err)
@@ -117,8 +117,8 @@ class ClickUpApi:
         # Calculate start of day in user's local timezone
         current_date = datetime.fromtimestamp(now / 1000).date()
         start_of_day = int(datetime.combine(current_date, datetime.min.time()).timestamp() * 1000)
-        
-        _LOGGER.debug("Daily time range: %s to %s", 
+
+        _LOGGER.debug("Daily time range: %s to %s",
                      datetime.fromtimestamp(start_of_day/1000).strftime('%Y-%m-%d %H:%M:%S'),
                      datetime.fromtimestamp(now/1000).strftime('%Y-%m-%d %H:%M:%S'))
         return self.get_time_entries(start_of_day, now)
@@ -129,8 +129,8 @@ class ClickUpApi:
         # Calculate start of week (7 days ago)
         current_date = datetime.fromtimestamp(now / 1000).date()
         start_of_week = int(datetime.combine(current_date - timedelta(days=7), datetime.min.time()).timestamp() * 1000)
-        
-        _LOGGER.debug("Weekly time range: %s to %s", 
+
+        _LOGGER.debug("Weekly time range: %s to %s",
                      datetime.fromtimestamp(start_of_week/1000).strftime('%Y-%m-%d %H:%M:%S'),
                      datetime.fromtimestamp(now/1000).strftime('%Y-%m-%d %H:%M:%S'))
         return self.get_time_entries(start_of_week, now)
@@ -141,8 +141,8 @@ class ClickUpApi:
         # Calculate start of month (30 days ago)
         current_date = datetime.fromtimestamp(now / 1000).date()
         start_of_month = int(datetime.combine(current_date - timedelta(days=30), datetime.min.time()).timestamp() * 1000)
-        
-        _LOGGER.debug("Monthly time range: %s to %s", 
+
+        _LOGGER.debug("Monthly time range: %s to %s",
                      datetime.fromtimestamp(start_of_month/1000).strftime('%Y-%m-%d %H:%M:%S'),
                      datetime.fromtimestamp(now/1000).strftime('%Y-%m-%d %H:%M:%S'))
         return self.get_time_entries(start_of_month, now)
@@ -153,9 +153,9 @@ class ClickUpApi:
         # Calculate start date using proper datetime calculation
         current_date = datetime.fromtimestamp(now / 1000).date()
         start_date = int(datetime.combine(current_date - timedelta(days=30 * months), datetime.min.time()).timestamp() * 1000)
-        
-        _LOGGER.debug("Custom period time range (%d months): %s to %s", 
-                     months, 
+
+        _LOGGER.debug("Custom period time range (%d months): %s to %s",
+                     months,
                      datetime.fromtimestamp(start_date/1000).strftime('%Y-%m-%d %H:%M:%S'),
                      datetime.fromtimestamp(now/1000).strftime('%Y-%m-%d %H:%M:%S'))
         return self.get_time_entries(start_date, now)
@@ -163,15 +163,15 @@ class ClickUpApi:
     def calculate_total_duration(self, time_entries: List[Dict]) -> int:
         """Calculate the total duration from time entries in milliseconds."""
         total_duration = 0
-        
+
         for entry in time_entries:
             # Handle different duration formats
             duration = entry.get('duration')
-            
+
             # Skip entries with no duration
             if duration is None:
                 continue
-                
+
             # Skip entries with negative duration (currently running)
             if isinstance(duration, (int, float)) and duration > 0:
                 total_duration += duration
@@ -183,14 +183,14 @@ class ClickUpApi:
                         total_duration += duration_value
                 except (ValueError, TypeError):
                     _LOGGER.warning(f"Could not parse duration: {duration}")
-        
+
         return total_duration
 
     def get_daily_worked_time(self) -> Dict[str, Any]:
         """Get the total worked time for the current day."""
         entries = self.get_daily_time_entries()
         total_duration = self.calculate_total_duration(entries)
-        
+
         return {
             "total_duration": total_duration,
             "duration_hours": total_duration // 3600000,  # Convert ms to hours
@@ -202,7 +202,7 @@ class ClickUpApi:
         """Get the total worked time for the current week."""
         entries = self.get_weekly_time_entries()
         total_duration = self.calculate_total_duration(entries)
-        
+
         return {
             "total_duration": total_duration,
             "duration_hours": total_duration // 3600000,  # Convert ms to hours
@@ -214,7 +214,80 @@ class ClickUpApi:
         """Get the total worked time for the current month."""
         entries = self.get_monthly_time_entries()
         total_duration = self.calculate_total_duration(entries)
-        
+
+        return {
+            "total_duration": total_duration,
+            "duration_hours": total_duration // 3600000,  # Convert ms to hours
+            "duration_minutes": (total_duration % 3600000) // 60000,  # Convert remainder to minutes
+            "entries_count": len(entries),
+        }
+
+    def get_current_day_time_entries(self) -> List[Dict]:
+        """Get time entries for the current calendar day (today)."""
+        now = int(time.time() * 1000)  # Current time in milliseconds
+        # Calculate start of current day in user's local timezone
+        current_date = datetime.fromtimestamp(now / 1000).date()
+        start_of_day = int(datetime.combine(current_date, datetime.min.time()).timestamp() * 1000)
+
+        _LOGGER.debug("Current day time range: %s to %s",
+                     datetime.fromtimestamp(start_of_day/1000).strftime('%Y-%m-%d %H:%M:%S'),
+                     datetime.fromtimestamp(now/1000).strftime('%Y-%m-%d %H:%M:%S'))
+        return self.get_time_entries(start_of_day, now)
+
+    def get_current_week_time_entries(self) -> List[Dict]:
+        """Get time entries for the current calendar week (starting Monday)."""
+        now = int(time.time() * 1000)  # Current time in milliseconds
+        # Calculate start of current week (Monday) in user's local timezone
+        current_date = datetime.fromtimestamp(now / 1000).date()
+        days_since_monday = current_date.weekday()  # Monday is 0, Sunday is 6
+        start_of_week = int(datetime.combine(current_date - timedelta(days=days_since_monday), datetime.min.time()).timestamp() * 1000)
+
+        _LOGGER.debug("Current week time range (from Monday): %s to %s",
+                     datetime.fromtimestamp(start_of_week/1000).strftime('%Y-%m-%d %H:%M:%S'),
+                     datetime.fromtimestamp(now/1000).strftime('%Y-%m-%d %H:%M:%S'))
+        return self.get_time_entries(start_of_week, now)
+
+    def get_current_month_time_entries(self) -> List[Dict]:
+        """Get time entries for the current calendar month."""
+        now = int(time.time() * 1000)  # Current time in milliseconds
+        # Calculate start of current month in user's local timezone
+        current_date = datetime.fromtimestamp(now / 1000).date()
+        start_of_month = int(datetime.combine(current_date.replace(day=1), datetime.min.time()).timestamp() * 1000)
+
+        _LOGGER.debug("Current month time range: %s to %s",
+                     datetime.fromtimestamp(start_of_month/1000).strftime('%Y-%m-%d %H:%M:%S'),
+                     datetime.fromtimestamp(now/1000).strftime('%Y-%m-%d %H:%M:%S'))
+        return self.get_time_entries(start_of_month, now)
+
+    def get_current_day_worked_time(self) -> Dict[str, Any]:
+        """Get the total worked time for the current calendar day."""
+        entries = self.get_current_day_time_entries()
+        total_duration = self.calculate_total_duration(entries)
+
+        return {
+            "total_duration": total_duration,
+            "duration_hours": total_duration // 3600000,  # Convert ms to hours
+            "duration_minutes": (total_duration % 3600000) // 60000,  # Convert remainder to minutes
+            "entries_count": len(entries),
+        }
+
+    def get_current_week_worked_time(self) -> Dict[str, Any]:
+        """Get the total worked time for the current calendar week (starting Monday)."""
+        entries = self.get_current_week_time_entries()
+        total_duration = self.calculate_total_duration(entries)
+
+        return {
+            "total_duration": total_duration,
+            "duration_hours": total_duration // 3600000,  # Convert ms to hours
+            "duration_minutes": (total_duration % 3600000) // 60000,  # Convert remainder to minutes
+            "entries_count": len(entries),
+        }
+
+    def get_current_month_worked_time(self) -> Dict[str, Any]:
+        """Get the total worked time for the current calendar month."""
+        entries = self.get_current_month_time_entries()
+        total_duration = self.calculate_total_duration(entries)
+
         return {
             "total_duration": total_duration,
             "duration_hours": total_duration // 3600000,  # Convert ms to hours
@@ -244,10 +317,10 @@ def format_duration(duration_ms):
 def test_api(api_token, workspace_id, user_id=None):
     """Test the ClickUp API functionality."""
     _LOGGER.info("Testing ClickUp API functionality...")
-    
+
     # Create the API client
     api = ClickUpApi(api_token, workspace_id, user_id)
-    
+
     # Test API connection
     _LOGGER.info("Testing API connection...")
     try:
@@ -260,14 +333,17 @@ def test_api(api_token, workspace_id, user_id=None):
     except Exception as e:
         _LOGGER.error(f"❌ API connection failed: {e}")
         return False
-    
-    # Test daily worked time
-    _LOGGER.info("\nTesting daily worked time...")
+
+    # Test rolling time periods
+    _LOGGER.info("\n=== Testing Rolling Time Periods ===")
+
+    # Test daily worked time (last 24 hours)
+    _LOGGER.info("\nTesting daily worked time (last 24 hours)...")
     try:
         daily_data = api.get_daily_worked_time()
         _LOGGER.info(f"Daily worked time: {daily_data.get('duration_hours')}h {daily_data.get('duration_minutes')}m")
         _LOGGER.info(f"Daily entries count: {daily_data.get('entries_count')}")
-        
+
         if daily_data.get('entries_count', 0) > 0:
             _LOGGER.info("✅ Daily worked time calculation successful!")
         else:
@@ -275,14 +351,14 @@ def test_api(api_token, workspace_id, user_id=None):
     except Exception as e:
         _LOGGER.error(f"❌ Daily worked time calculation failed: {e}")
         return False
-    
-    # Test weekly worked time
-    _LOGGER.info("\nTesting weekly worked time...")
+
+    # Test weekly worked time (last 7 days)
+    _LOGGER.info("\nTesting weekly worked time (last 7 days)...")
     try:
         weekly_data = api.get_weekly_worked_time()
         _LOGGER.info(f"Weekly worked time: {weekly_data.get('duration_hours')}h {weekly_data.get('duration_minutes')}m")
         _LOGGER.info(f"Weekly entries count: {weekly_data.get('entries_count')}")
-        
+
         if weekly_data.get('entries_count', 0) > 0:
             _LOGGER.info("✅ Weekly worked time calculation successful!")
         else:
@@ -290,14 +366,14 @@ def test_api(api_token, workspace_id, user_id=None):
     except Exception as e:
         _LOGGER.error(f"❌ Weekly worked time calculation failed: {e}")
         return False
-    
-    # Test monthly worked time
-    _LOGGER.info("\nTesting monthly worked time...")
+
+    # Test monthly worked time (last 30 days)
+    _LOGGER.info("\nTesting monthly worked time (last 30 days)...")
     try:
         monthly_data = api.get_monthly_worked_time()
         _LOGGER.info(f"Monthly worked time: {monthly_data.get('duration_hours')}h {monthly_data.get('duration_minutes')}m")
         _LOGGER.info(f"Monthly entries count: {monthly_data.get('entries_count')}")
-        
+
         if monthly_data.get('entries_count', 0) > 0:
             _LOGGER.info("✅ Monthly worked time calculation successful!")
         else:
@@ -305,7 +381,55 @@ def test_api(api_token, workspace_id, user_id=None):
     except Exception as e:
         _LOGGER.error(f"❌ Monthly worked time calculation failed: {e}")
         return False
-    
+
+    # Test calendar-based time periods
+    _LOGGER.info("\n=== Testing Calendar-Based Time Periods ===")
+
+    # Test current day worked time (today)
+    _LOGGER.info("\nTesting current day worked time (today)...")
+    try:
+        current_day_data = api.get_current_day_worked_time()
+        _LOGGER.info(f"Current day worked time: {current_day_data.get('duration_hours')}h {current_day_data.get('duration_minutes')}m")
+        _LOGGER.info(f"Current day entries count: {current_day_data.get('entries_count')}")
+
+        if current_day_data.get('entries_count', 0) > 0:
+            _LOGGER.info("✅ Current day worked time calculation successful!")
+        else:
+            _LOGGER.warning("⚠️ No current day time entries found")
+    except Exception as e:
+        _LOGGER.error(f"❌ Current day worked time calculation failed: {e}")
+        return False
+
+    # Test current week worked time (this week starting Monday)
+    _LOGGER.info("\nTesting current week worked time (this week starting Monday)...")
+    try:
+        current_week_data = api.get_current_week_worked_time()
+        _LOGGER.info(f"Current week worked time: {current_week_data.get('duration_hours')}h {current_week_data.get('duration_minutes')}m")
+        _LOGGER.info(f"Current week entries count: {current_week_data.get('entries_count')}")
+
+        if current_week_data.get('entries_count', 0) > 0:
+            _LOGGER.info("✅ Current week worked time calculation successful!")
+        else:
+            _LOGGER.warning("⚠️ No current week time entries found")
+    except Exception as e:
+        _LOGGER.error(f"❌ Current week worked time calculation failed: {e}")
+        return False
+
+    # Test current month worked time (this calendar month)
+    _LOGGER.info("\nTesting current month worked time (this calendar month)...")
+    try:
+        current_month_data = api.get_current_month_worked_time()
+        _LOGGER.info(f"Current month worked time: {current_month_data.get('duration_hours')}h {current_month_data.get('duration_minutes')}m")
+        _LOGGER.info(f"Current month entries count: {current_month_data.get('entries_count')}")
+
+        if current_month_data.get('entries_count', 0) > 0:
+            _LOGGER.info("✅ Current month worked time calculation successful!")
+        else:
+            _LOGGER.warning("⚠️ No current month time entries found")
+    except Exception as e:
+        _LOGGER.error(f"❌ Current month worked time calculation failed: {e}")
+        return False
+
     # Test custom period (3 months)
     _LOGGER.info("\nTesting custom period (3 months)...")
     try:
@@ -313,10 +437,10 @@ def test_api(api_token, workspace_id, user_id=None):
         total_duration = api.calculate_total_duration(entries)
         hours = total_duration // 3600000
         minutes = (total_duration % 3600000) // 60000
-        
+
         _LOGGER.info(f"Custom period (3 months) entries count: {len(entries)}")
         _LOGGER.info(f"Custom period (3 months) total duration: {hours}h {minutes}m")
-        
+
         if len(entries) > 0:
             _LOGGER.info("✅ Custom period calculation successful!")
         else:
@@ -324,7 +448,7 @@ def test_api(api_token, workspace_id, user_id=None):
     except Exception as e:
         _LOGGER.error(f"❌ Custom period calculation failed: {e}")
         return False
-    
+
     _LOGGER.info("\n✅ All tests completed successfully!")
     return True
 
@@ -335,9 +459,9 @@ def main():
     parser.add_argument('--api-token', required=True, help='ClickUp API token')
     parser.add_argument('--workspace-id', required=True, help='ClickUp workspace ID')
     parser.add_argument('--user-id', help='ClickUp user ID (optional)')
-    
+
     args = parser.parse_args()
-    
+
     test_api(args.api_token, args.workspace_id, args.user_id)
 
 

@@ -23,6 +23,9 @@ from .const import (
     SENSOR_DAILY_WORKED_TIME,
     SENSOR_WEEKLY_WORKED_TIME,
     SENSOR_MONTHLY_WORKED_TIME,
+    SENSOR_CURRENT_DAY_WORKED_TIME,
+    SENSOR_CURRENT_WEEK_WORKED_TIME,
+    SENSOR_CURRENT_MONTH_WORKED_TIME,
     ATTR_TOTAL_DURATION,
     ATTR_DURATION_HOURS,
     ATTR_DURATION_MINUTES,
@@ -59,11 +62,12 @@ async def async_setup_entry(
 
     # Create sensor entities
     entities = [
+        # Rolling time period sensors (last 24 hours, 7 days, 30 days)
         ClickUpWorklogSensor(
             coordinator,
             entry,
             SENSOR_DAILY_WORKED_TIME,
-            "Daily Worked Time",
+            "Daily Worked Time (Last 24h)",
             "mdi:clock-outline",
             "h",
         ),
@@ -71,7 +75,7 @@ async def async_setup_entry(
             coordinator,
             entry,
             SENSOR_WEEKLY_WORKED_TIME,
-            "Weekly Worked Time",
+            "Weekly Worked Time (Last 7d)",
             "mdi:calendar-week",
             "h",
         ),
@@ -79,8 +83,34 @@ async def async_setup_entry(
             coordinator,
             entry,
             SENSOR_MONTHLY_WORKED_TIME,
-            "Monthly Worked Time",
+            "Monthly Worked Time (Last 30d)",
             "mdi:calendar-month",
+            "h",
+        ),
+
+        # Calendar-based time period sensors
+        ClickUpWorklogSensor(
+            coordinator,
+            entry,
+            SENSOR_CURRENT_DAY_WORKED_TIME,
+            "Today's Worked Time",
+            "mdi:clock-time-eight",
+            "h",
+        ),
+        ClickUpWorklogSensor(
+            coordinator,
+            entry,
+            SENSOR_CURRENT_WEEK_WORKED_TIME,
+            "This Week's Worked Time",
+            "mdi:calendar-week-begin",
+            "h",
+        ),
+        ClickUpWorklogSensor(
+            coordinator,
+            entry,
+            SENSOR_CURRENT_MONTH_WORKED_TIME,
+            "This Month's Worked Time",
+            "mdi:calendar-today",
             "h",
         ),
     ]
@@ -167,34 +197,92 @@ class ClickUpWorklogDataUpdateCoordinator(DataUpdateCoordinator):
                     "entries_count": 0,
                 }
 
+            # Get data for current day (calendar day)
+            try:
+                current_day_data = await self.hass.async_add_executor_job(
+                    self.api.get_current_day_worked_time
+                )
+                _LOGGER.info("Current day data: %s hours %s minutes (%s entries)",
+                           current_day_data.get("duration_hours", 0),
+                           current_day_data.get("duration_minutes", 0),
+                           current_day_data.get("entries_count", 0))
+            except Exception as err:
+                _LOGGER.error("Error fetching current day data: %s", err)
+                current_day_data = {
+                    "total_duration": 0,
+                    "duration_hours": 0,
+                    "duration_minutes": 0,
+                    "entries_count": 0,
+                }
+
+            # Get data for current week (calendar week starting Monday)
+            try:
+                current_week_data = await self.hass.async_add_executor_job(
+                    self.api.get_current_week_worked_time
+                )
+                _LOGGER.info("Current week data: %s hours %s minutes (%s entries)",
+                           current_week_data.get("duration_hours", 0),
+                           current_week_data.get("duration_minutes", 0),
+                           current_week_data.get("entries_count", 0))
+            except Exception as err:
+                _LOGGER.error("Error fetching current week data: %s", err)
+                current_week_data = {
+                    "total_duration": 0,
+                    "duration_hours": 0,
+                    "duration_minutes": 0,
+                    "entries_count": 0,
+                }
+
+            # Get data for current month (calendar month)
+            try:
+                current_month_data = await self.hass.async_add_executor_job(
+                    self.api.get_current_month_worked_time
+                )
+                _LOGGER.info("Current month data: %s hours %s minutes (%s entries)",
+                           current_month_data.get("duration_hours", 0),
+                           current_month_data.get("duration_minutes", 0),
+                           current_month_data.get("entries_count", 0))
+            except Exception as err:
+                _LOGGER.error("Error fetching current month data: %s", err)
+                current_month_data = {
+                    "total_duration": 0,
+                    "duration_hours": 0,
+                    "duration_minutes": 0,
+                    "entries_count": 0,
+                }
+
             return {
+                # Rolling time period sensors
                 SENSOR_DAILY_WORKED_TIME: daily_data,
                 SENSOR_WEEKLY_WORKED_TIME: weekly_data,
                 SENSOR_MONTHLY_WORKED_TIME: monthly_data,
+
+                # Calendar-based time period sensors
+                SENSOR_CURRENT_DAY_WORKED_TIME: current_day_data,
+                SENSOR_CURRENT_WEEK_WORKED_TIME: current_week_data,
+                SENSOR_CURRENT_MONTH_WORKED_TIME: current_month_data,
             }
         except Exception as err:
             _LOGGER.error("Error fetching ClickUp Worklog data: %s", err)
             # Return empty data instead of raising an exception
             # This prevents the coordinator from stopping updates
+            empty_data = {
+                "total_duration": 0,
+                "duration_hours": 0,
+                "duration_minutes": 0,
+                "entries_count": 0,
+            }
+
             return {
-                SENSOR_DAILY_WORKED_TIME: {
-                    "total_duration": 0,
-                    "duration_hours": 0,
-                    "duration_minutes": 0,
-                    "entries_count": 0,
-                },
-                SENSOR_WEEKLY_WORKED_TIME: {
-                    "total_duration": 0,
-                    "duration_hours": 0,
-                    "duration_minutes": 0,
-                    "entries_count": 0,
-                },
-                SENSOR_MONTHLY_WORKED_TIME: {
-                    "total_duration": 0,
-                    "duration_hours": 0,
-                    "duration_minutes": 0,
-                    "entries_count": 0,
-                },
+                # Rolling time period sensors
+                SENSOR_DAILY_WORKED_TIME: empty_data.copy(),
+                SENSOR_WEEKLY_WORKED_TIME: empty_data.copy(),
+                SENSOR_MONTHLY_WORKED_TIME: empty_data.copy(),
+
+                # Calendar-based time period sensors
+                SENSOR_CURRENT_DAY_WORKED_TIME: empty_data.copy(),
+                SENSOR_CURRENT_WEEK_WORKED_TIME: empty_data.copy(),
+                SENSOR_CURRENT_MONTH_WORKED_TIME: empty_data.copy(),
             }
 
 

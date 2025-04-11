@@ -22,6 +22,11 @@ SENSOR_DAILY_WORKED_TIME = "daily_worked_time"
 SENSOR_WEEKLY_WORKED_TIME = "weekly_worked_time"
 SENSOR_MONTHLY_WORKED_TIME = "monthly_worked_time"
 
+# Calendar-based sensor names
+SENSOR_CURRENT_DAY_WORKED_TIME = "current_day_worked_time"
+SENSOR_CURRENT_WEEK_WORKED_TIME = "current_week_worked_time"
+SENSOR_CURRENT_MONTH_WORKED_TIME = "current_month_worked_time"
+
 # API endpoints
 API_BASE_URL = "https://api.clickup.com/api/v2"
 API_TIME_ENTRIES_ENDPOINT = "/team/{workspace_id}/time_entries"

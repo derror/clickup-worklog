@@ -151,6 +151,43 @@ class ClickUpApi:
                      datetime.fromtimestamp(now/1000).strftime('%Y-%m-%d %H:%M:%S'))
         return self.get_time_entries(start_date, now)
 
+    def get_current_day_time_entries(self) -> List[Dict]:
+        """Get time entries for the current calendar day (today)."""
+        now = int(time.time() * 1000)  # Current time in milliseconds
+        # Calculate start of current day in user's local timezone
+        current_date = datetime.fromtimestamp(now / 1000).date()
+        start_of_day = int(datetime.combine(current_date, datetime.min.time()).timestamp() * 1000)
+
+        _LOGGER.debug("Current day time range: %s to %s",
+                     datetime.fromtimestamp(start_of_day/1000).strftime('%Y-%m-%d %H:%M:%S'),
+                     datetime.fromtimestamp(now/1000).strftime('%Y-%m-%d %H:%M:%S'))
+        return self.get_time_entries(start_of_day, now)
+
+    def get_current_week_time_entries(self) -> List[Dict]:
+        """Get time entries for the current calendar week (starting Monday)."""
+        now = int(time.time() * 1000)  # Current time in milliseconds
+        # Calculate start of current week (Monday) in user's local timezone
+        current_date = datetime.fromtimestamp(now / 1000).date()
+        days_since_monday = current_date.weekday()  # Monday is 0, Sunday is 6
+        start_of_week = int(datetime.combine(current_date - timedelta(days=days_since_monday), datetime.min.time()).timestamp() * 1000)
+
+        _LOGGER.debug("Current week time range (from Monday): %s to %s",
+                     datetime.fromtimestamp(start_of_week/1000).strftime('%Y-%m-%d %H:%M:%S'),
+                     datetime.fromtimestamp(now/1000).strftime('%Y-%m-%d %H:%M:%S'))
+        return self.get_time_entries(start_of_week, now)
+
+    def get_current_month_time_entries(self) -> List[Dict]:
+        """Get time entries for the current calendar month."""
+        now = int(time.time() * 1000)  # Current time in milliseconds
+        # Calculate start of current month in user's local timezone
+        current_date = datetime.fromtimestamp(now / 1000).date()
+        start_of_month = int(datetime.combine(current_date.replace(day=1), datetime.min.time()).timestamp() * 1000)
+
+        _LOGGER.debug("Current month time range: %s to %s",
+                     datetime.fromtimestamp(start_of_month/1000).strftime('%Y-%m-%d %H:%M:%S'),
+                     datetime.fromtimestamp(now/1000).strftime('%Y-%m-%d %H:%M:%S'))
+        return self.get_time_entries(start_of_month, now)
+
     def calculate_total_duration(self, time_entries: List[Dict]) -> int:
         """Calculate the total duration from time entries in milliseconds."""
         total_duration = 0
@@ -206,6 +243,45 @@ class ClickUpApi:
     def get_monthly_worked_time(self) -> Dict[str, Any]:
         """Get the total worked time for the current month."""
         entries = self.get_monthly_time_entries()
+        total_duration = self.calculate_total_duration(entries)
+
+        return {
+            "total_duration": total_duration,
+            "duration_hours": total_duration // 3600000,  # Convert ms to hours
+            "duration_minutes": (total_duration % 3600000) // 60000,  # Convert remainder to minutes
+            "entries_count": len(entries),
+            "entries": entries,
+        }
+
+    def get_current_day_worked_time(self) -> Dict[str, Any]:
+        """Get the total worked time for the current calendar day."""
+        entries = self.get_current_day_time_entries()
+        total_duration = self.calculate_total_duration(entries)
+
+        return {
+            "total_duration": total_duration,
+            "duration_hours": total_duration // 3600000,  # Convert ms to hours
+            "duration_minutes": (total_duration % 3600000) // 60000,  # Convert remainder to minutes
+            "entries_count": len(entries),
+            "entries": entries,
+        }
+
+    def get_current_week_worked_time(self) -> Dict[str, Any]:
+        """Get the total worked time for the current calendar week (starting Monday)."""
+        entries = self.get_current_week_time_entries()
+        total_duration = self.calculate_total_duration(entries)
+
+        return {
+            "total_duration": total_duration,
+            "duration_hours": total_duration // 3600000,  # Convert ms to hours
+            "duration_minutes": (total_duration % 3600000) // 60000,  # Convert remainder to minutes
+            "entries_count": len(entries),
+            "entries": entries,
+        }
+
+    def get_current_month_worked_time(self) -> Dict[str, Any]:
+        """Get the total worked time for the current calendar month."""
+        entries = self.get_current_month_time_entries()
         total_duration = self.calculate_total_duration(entries)
 
         return {

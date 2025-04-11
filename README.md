@@ -54,11 +54,23 @@ You will need:
 
 ## Sensors
 
-The integration creates three sensors:
+The integration creates six sensors:
 
-- `sensor.daily_worked_time`: Shows the total time worked today
-- `sensor.weekly_worked_time`: Shows the total time worked this week (last 7 days)
-- `sensor.monthly_worked_time`: Shows the total time worked this month (last 30 days)
+### Rolling Time Period Sensors
+
+These sensors show the total time worked in the last 24 hours, 7 days, and 30 days, regardless of calendar boundaries:
+
+- `sensor.daily_worked_time`: Shows the total time worked in the last 24 hours
+- `sensor.weekly_worked_time`: Shows the total time worked in the last 7 days
+- `sensor.monthly_worked_time`: Shows the total time worked in the last 30 days
+
+### Calendar-Based Time Period Sensors
+
+These sensors show the total time worked in the current calendar day, week (starting Monday), and month:
+
+- `sensor.current_day_worked_time`: Shows the total time worked today (current calendar day)
+- `sensor.current_week_worked_time`: Shows the total time worked this week (current calendar week, starting Monday)
+- `sensor.current_month_worked_time`: Shows the total time worked this month (current calendar month)
 
 Each sensor includes the following attributes:
 

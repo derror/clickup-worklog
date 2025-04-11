@@ -76,6 +76,28 @@ If you encounter issues:
 3. Make sure your ClickUp account has time tracking enabled
 4. Ensure you have time entries in the selected time periods
 
+### Testing the Integration
+
+If you're experiencing issues with empty sensors or incorrect time calculations, you can use the included standalone test script to diagnose the problem:
+
+```bash
+# Install dependencies
+./install_dependencies.sh
+
+# Test the ClickUp API functionality
+python3 tests/standalone_api_test.py --api-token YOUR_API_TOKEN --workspace-id YOUR_WORKSPACE_ID
+```
+
+This standalone test script doesn't require Home Assistant and will test the ClickUp API functionality directly. It will verify:
+
+1. API connection
+2. Daily worked time calculation
+3. Weekly worked time calculation
+4. Monthly worked time calculation
+5. Custom period (3 months) calculation
+
+If the test script shows successful results but you're still experiencing issues in Home Assistant, the problem might be with the integration between the API and Home Assistant. In that case, check the Home Assistant logs for more information.
+
 ## Support
 
 For issues, feature requests, or contributions, please open an issue on the GitHub repository.

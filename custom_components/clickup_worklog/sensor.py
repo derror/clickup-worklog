@@ -111,22 +111,61 @@ class ClickUpWorklogDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> Dict[str, Any]:
         """Fetch data from ClickUp API."""
         try:
-            _LOGGER.debug("Updating ClickUp Worklog data")
-            # Get data for all time periods
-            daily_data = await self.hass.async_add_executor_job(
-                self.api.get_daily_worked_time
-            )
-            _LOGGER.debug("Daily data: %s", daily_data)
+            _LOGGER.info("Updating ClickUp Worklog data")
 
-            weekly_data = await self.hass.async_add_executor_job(
-                self.api.get_weekly_worked_time
-            )
-            _LOGGER.debug("Weekly data: %s", weekly_data)
+            # Get data for daily time period
+            try:
+                daily_data = await self.hass.async_add_executor_job(
+                    self.api.get_daily_worked_time
+                )
+                _LOGGER.info("Daily data: %s hours %s minutes (%s entries)",
+                           daily_data.get("duration_hours", 0),
+                           daily_data.get("duration_minutes", 0),
+                           daily_data.get("entries_count", 0))
+            except Exception as err:
+                _LOGGER.error("Error fetching daily data: %s", err)
+                daily_data = {
+                    "total_duration": 0,
+                    "duration_hours": 0,
+                    "duration_minutes": 0,
+                    "entries_count": 0,
+                }
 
-            monthly_data = await self.hass.async_add_executor_job(
-                self.api.get_monthly_worked_time
-            )
-            _LOGGER.debug("Monthly data: %s", monthly_data)
+            # Get data for weekly time period
+            try:
+                weekly_data = await self.hass.async_add_executor_job(
+                    self.api.get_weekly_worked_time
+                )
+                _LOGGER.info("Weekly data: %s hours %s minutes (%s entries)",
+                           weekly_data.get("duration_hours", 0),
+                           weekly_data.get("duration_minutes", 0),
+                           weekly_data.get("entries_count", 0))
+            except Exception as err:
+                _LOGGER.error("Error fetching weekly data: %s", err)
+                weekly_data = {
+                    "total_duration": 0,
+                    "duration_hours": 0,
+                    "duration_minutes": 0,
+                    "entries_count": 0,
+                }
+
+            # Get data for monthly time period
+            try:
+                monthly_data = await self.hass.async_add_executor_job(
+                    self.api.get_monthly_worked_time
+                )
+                _LOGGER.info("Monthly data: %s hours %s minutes (%s entries)",
+                           monthly_data.get("duration_hours", 0),
+                           monthly_data.get("duration_minutes", 0),
+                           monthly_data.get("entries_count", 0))
+            except Exception as err:
+                _LOGGER.error("Error fetching monthly data: %s", err)
+                monthly_data = {
+                    "total_duration": 0,
+                    "duration_hours": 0,
+                    "duration_minutes": 0,
+                    "entries_count": 0,
+                }
 
             return {
                 SENSOR_DAILY_WORKED_TIME: daily_data,

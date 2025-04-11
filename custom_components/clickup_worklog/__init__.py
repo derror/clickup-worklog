@@ -1,11 +1,23 @@
 """The ClickUp Worklog integration."""
 import logging
-from typing import Any
+import datetime
+import voluptuous as vol
+from typing import Any, Dict, List, Optional
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall, callback
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import DOMAIN
+from .api import ClickUpApi
+from .const import (
+    DOMAIN,
+    CONF_API_TOKEN,
+    CONF_WORKSPACE_ID,
+    CONF_USER_ID,
+    CONF_SYNC_MONTHS,
+    SERVICE_SYNC_TIMESHEET,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,6 +38,53 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Set up all platforms for this device/entry
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Register services
+    async def sync_timesheet_service(call: ServiceCall) -> None:
+        """Service to sync timesheet data for a specific period."""
+        months = call.data.get(CONF_SYNC_MONTHS, 3)
+        _LOGGER.info("Syncing timesheet data for the last %d months", months)
+
+        # Get the API client from the first entry (assuming only one entry)
+        if not hass.data[DOMAIN]:
+            _LOGGER.error("No ClickUp Worklog integration configured")
+            return
+
+        entry_id = list(hass.data[DOMAIN].keys())[0]
+        entry_data = hass.data[DOMAIN][entry_id]
+
+        api = ClickUpApi(
+            api_token=entry_data[CONF_API_TOKEN],
+            workspace_id=entry_data[CONF_WORKSPACE_ID],
+            user_id=entry_data.get(CONF_USER_ID),
+        )
+
+        try:
+            # Get time entries for the specified period
+            time_entries = await hass.async_add_executor_job(
+                api.get_custom_period_time_entries, months
+            )
+
+            _LOGGER.info("Synced %d time entries for the last %d months", len(time_entries), months)
+
+            # Force update of all sensors
+            for coordinator in hass.data.get(DOMAIN, {}).get("coordinators", []):
+                await coordinator.async_refresh()
+
+        except Exception as err:
+            _LOGGER.error("Error syncing timesheet data: %s", err)
+
+    # Register the service
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SYNC_TIMESHEET,
+        sync_timesheet_service,
+        schema=vol.Schema({
+            vol.Optional(CONF_SYNC_MONTHS, default=3): vol.All(
+                vol.Coerce(int), vol.Range(min=1, max=12)
+            ),
+        }),
+    )
 
     # Reload entry when it's updated
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))

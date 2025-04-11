@@ -9,6 +9,10 @@ VERSION = "0.1.0"
 CONF_API_TOKEN = "api_token"
 CONF_WORKSPACE_ID = "workspace_id"
 CONF_USER_ID = "user_id"  # Optional, if not provided will use the authenticated user
+CONF_SYNC_MONTHS = "sync_months"
+
+# Services
+SERVICE_SYNC_TIMESHEET = "sync_timesheet"
 
 # Defaults
 DEFAULT_SCAN_INTERVAL = 300  # 5 minutes

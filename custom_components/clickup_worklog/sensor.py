@@ -54,6 +54,9 @@ async def async_setup_entry(
     # Fetch initial data
     await coordinator.async_config_entry_first_refresh()
 
+    # Store the coordinator in hass.data for access by services
+    hass.data.setdefault(DOMAIN, {}).setdefault("coordinators", []).append(coordinator)
+
     # Create sensor entities
     entities = [
         ClickUpWorklogSensor(

@@ -107,6 +107,14 @@ class ClickUpApi:
         _LOGGER.debug("Monthly time range: %s to %s", start_of_month, now)
         return self.get_time_entries(start_of_month, now)
 
+    def get_custom_period_time_entries(self, months: int) -> List[Dict]:
+        """Get time entries for a custom period (in months)."""
+        now = int(time.time() * 1000)  # Current time in milliseconds
+        start_date = now - (months * 30 * 86400000)  # X months ago
+
+        _LOGGER.debug("Custom period time range (%d months): %s to %s", months, start_date, now)
+        return self.get_time_entries(start_date, now)
+
     def calculate_total_duration(self, time_entries: List[Dict]) -> int:
         """Calculate the total duration from time entries in milliseconds."""
         total_duration = 0

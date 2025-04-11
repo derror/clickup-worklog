@@ -5,12 +5,20 @@ from typing import Any, Dict, Optional
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import entity_registry as er
 
 from .api import ClickUpApi, ClickUpApiError
-from .const import DOMAIN, CONF_API_TOKEN, CONF_WORKSPACE_ID, CONF_USER_ID
+from .const import (
+    DOMAIN,
+    CONF_API_TOKEN,
+    CONF_WORKSPACE_ID,
+    CONF_USER_ID,
+    CONF_SYNC_MONTHS,
+    SERVICE_SYNC_TIMESHEET,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -70,12 +78,18 @@ class ClickUpWorklogConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 # Create a unique ID based on the workspace ID
                 await self.async_set_unique_id(user_input[CONF_WORKSPACE_ID])
                 self._abort_if_unique_id_configured()
-                
+
                 return self.async_create_entry(title=info["title"], data=user_input)
 
         return self.async_show_form(
             step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
         )
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        """Get the options flow for this handler."""
+        return ClickUpWorklogOptionsFlow(config_entry)
 
 
 class CannotConnect(HomeAssistantError):
@@ -84,3 +98,49 @@ class CannotConnect(HomeAssistantError):
 
 class InvalidAuth(HomeAssistantError):
     """Error to indicate there is invalid auth."""
+
+
+class ClickUpWorklogOptionsFlow(config_entries.OptionsFlow):
+    """Handle options for the ClickUp Worklog integration."""
+
+    def __init__(self, config_entry):
+        """Initialize options flow."""
+        self.config_entry = config_entry
+
+    async def async_step_init(self, user_input=None):
+        """Handle options flow."""
+        if user_input is not None:
+            # If the user clicked the button to sync timesheet
+            if user_input.get(CONF_SYNC_MONTHS):
+                # Call the service to sync timesheet
+                months = int(user_input[CONF_SYNC_MONTHS])
+                await self.hass.services.async_call(
+                    DOMAIN,
+                    SERVICE_SYNC_TIMESHEET,
+                    {CONF_SYNC_MONTHS: months},
+                    blocking=True,
+                )
+                # Return to the same form with a message
+                return self.async_show_form(
+                    step_id="init",
+                    data_schema=vol.Schema(
+                        {
+                            vol.Optional(CONF_SYNC_MONTHS, default="3"): vol.In(
+                                {"1": "1 month", "3": "3 months", "6": "6 months", "12": "12 months"}
+                            ),
+                        }
+                    ),
+                    description_placeholders={"sync_status": "Synchronization started!"}
+                )
+
+        # Show the form
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(CONF_SYNC_MONTHS, default="3"): vol.In(
+                        {"1": "1 month", "3": "3 months", "6": "6 months", "12": "12 months"}
+                    ),
+                }
+            ),
+        )

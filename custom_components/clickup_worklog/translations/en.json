@@ -20,5 +20,28 @@
     "abort": {
       "already_configured": "This ClickUp Workspace is already configured."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "ClickUp Worklog Options",
+        "description": "Synchronize timesheet data for a specific period. This will fetch all time entries for the selected period and update the sensors.",
+        "data": {
+          "sync_months": "Synchronize timesheet data for the last:"
+        }
+      }
+    }
+  },
+  "services": {
+    "sync_timesheet": {
+      "name": "Sync Timesheet",
+      "description": "Synchronize timesheet data for a specific period.",
+      "fields": {
+        "sync_months": {
+          "name": "Months",
+          "description": "Number of months to synchronize (1-12)."
+        }
+      }
+    }
   }
 }
